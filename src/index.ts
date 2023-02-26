@@ -2,12 +2,15 @@ import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 dotenv.config();
 
+import { createDatabase } from "./db";
 import expensesRouter from "./expense/routes";
 
 const app: Express = express();
 const port = process.env.PORT;
 
 app.use(express.json());
+
+createDatabase();
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hi from Mabills :) ");
