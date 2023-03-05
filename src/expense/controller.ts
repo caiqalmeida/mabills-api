@@ -1,4 +1,7 @@
+import fs from "fs";
 import { Request, Response } from "express";
+import csvParser from "csv-parser";
+import multer from "multer";
 
 import { pool } from "../db";
 import queries from "./queries";
@@ -22,7 +25,6 @@ const getExpenseById = (req: Request, res: Response) => {
 
 const addExpense = (req: Request, res: Response) => {
   const { date, category, description, totalValue } = req.body;
-  console.log("req.body", req.body);
 
   pool.query(
     queries.addExpense,
@@ -35,6 +37,39 @@ const addExpense = (req: Request, res: Response) => {
       res.status(201).send("Expense created Successfully !");
     }
   );
+};
+
+const addExpenseByFile = async (req: Request, res: Response) => {
+  try {
+    if (!req.file?.path as any) {
+      throw new Error("CSV file not provided");
+    }
+
+    const filePath = req.file!.path;
+
+    const stream = await loadCsvData(filePath);
+
+    console.log("stream", stream);
+
+    for await (const row of stream) {
+      const { date, category, description, totalValue } = row;
+      pool.query(
+        queries.addExpense,
+        [date, category, description, totalValue],
+        (error, results) => {
+          if (error) {
+            console.log("error", error);
+          }
+          res.status(201).send("Expense created Successfully !");
+        }
+      );
+    }
+
+    res.send("CSV data loaded successfully");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading CSV data");
+  }
 };
 
 const deleteExpense = (req: Request, res: Response) => {
@@ -81,10 +116,17 @@ const updateExpense = (req: Request, res: Response) => {
   });
 };
 
+async function loadCsvData(filePath: string) {
+  const stream = fs.createReadStream(filePath).pipe(csvParser());
+
+  return stream;
+}
+
 export default {
   getExpenses,
   getExpenseById,
   addExpense,
+  addExpenseByFile,
   deleteExpense,
   updateExpense,
 };
